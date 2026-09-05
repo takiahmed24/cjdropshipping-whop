@@ -106,7 +106,7 @@ def view_dashboard(request: Request, company_id: Optional[str] = None, experienc
         "is_cj_connected": bool(current_merchant.get("cj_api_key"))
     }
 
-    return templates.TemplateResponse("dashboard.html", {
+    return templates.TemplateResponse(request=request, name="dashboard.html", context={
         "request": request,
         "active_page": "dashboard",
         "company_id": company_id,
@@ -130,7 +130,7 @@ def view_sku_mapping(request: Request):
     mappings = [dict(r) for r in c.fetchall()]
     conn.close()
 
-    return templates.TemplateResponse("sku_mapping.html", {
+    return templates.TemplateResponse(request=request, name="sku_mapping.html", context={
         "request": request,
         "active_page": "sku_mapping",
         "company_id": company_id,
@@ -146,7 +146,7 @@ def view_products_catalog(request: Request):
     current_merchant = get_or_create_merchant(company_id)
     all_merchants = list_merchants()
 
-    return templates.TemplateResponse("products.html", {
+    return templates.TemplateResponse(request=request, name="products.html", context={
         "request": request,
         "active_page": "products",
         "company_id": company_id,
@@ -165,7 +165,7 @@ def view_settings(request: Request):
     scheme = "https" if "https" in request.headers.get("x-forwarded-proto", "") else "http"
     webhook_url = f"{scheme}://{host_header}/api/webhooks/whop?company_id={company_id}"
 
-    return templates.TemplateResponse("settings.html", {
+    return templates.TemplateResponse(request=request, name="settings.html", context={
         "request": request,
         "active_page": "settings",
         "company_id": company_id,
@@ -183,7 +183,7 @@ def view_app_store_listing(request: Request):
     current_merchant = get_or_create_merchant(company_id)
     all_merchants = list_merchants()
 
-    return templates.TemplateResponse("app_store.html", {
+    return templates.TemplateResponse(request=request, name="app_store.html", context={
         "request": request,
         "active_page": "app_store",
         "company_id": company_id,
