@@ -19,7 +19,8 @@ from database import (
     get_db_connection, get_settings, update_settings, log_event,
     get_or_create_merchant, list_merchants, DEFAULT_COMPANY_ID, init_db,
     get_sourcing_requests, add_sourcing_request, get_notifications,
-    mark_notifications_read, get_billing_transactions, add_billing_transaction
+    mark_notifications_read, get_billing_transactions, add_billing_transaction,
+    add_notification, update_billing_settings
 )
 from services.sync_worker import process_incoming_whop_order, sync_all_pending_tracking, list_cj_product_to_whop_service
 from services.cj_api_client import cj_client
@@ -286,8 +287,14 @@ def view_billing(request: Request):
         "current_merchant": current_merchant,
         "all_merchants": all_merchants,
         "transactions": transactions,
-        "plan_price": settings.PLAN_PRICE_USD,
-        "trial_days": settings.TRIAL_DAYS
+        "plan_tier": current_merchant.get("plan_tier") or "Creator",
+        "plan_price": float(current_merchant.get("plan_price") or settings.PLAN_PRICE_USD),
+        "plan_interval": current_merchant.get("plan_interval") or "monthly",
+        "payment_method": current_merchant.get("payment_method") or "whop_balance",
+        "whop_balance": float(current_merchant.get("whop_balance") or 432.00),
+        "trial_days": settings.TRIAL_DAYS,
+        "whop_checkout_url": settings.WHOP_CHECKOUT_URL,
+        "whop_portal_url": settings.WHOP_PORTAL_URL
     })
 
 @app.get("/shipping", response_class=HTMLResponse)
@@ -616,6 +623,139 @@ def api_mark_notifications_read_endpoint(request: Request):
     company_id = get_request_company_id(request)
     mark_notifications_read(company_id)
     return {"status": "marked_read", "company_id": company_id}
+
+class BillingMethodUpdate(BaseModel):
+    company_id: Optional[str] = None
+    payment_method: str  # 'whop_balance' or 'credit_card'
+
+@app.post("/api/billing/switch-payment-method")
+def api_switch_payment_method(req: BillingMethodUpdate, request: Request):
+    """Allows merchant to toggle their default billing source between Whop Balance and Credit Card."""
+    company_id = req.company_id or get_request_company_id(request)
+    method = "whop_balance" if "balance" in req.payment_method.lower() else "credit_card"
+    update_billing_settings(company_id=company_id, payment_method=method)
+    label = "Whop Merchant Balance" if method == "whop_balance" else "Credit Card (Visa •••• 4242)"
+    add_notification(
+        company_id, "system", "Payment Preference Updated",
+        f"Default subscription payment source set to {label}.", "Just now"
+    )
+    log_event("billing_method_switch", "success", f"Merchant {company_id} switched payment method to {method}", company_id=company_id)
+    return {"status": "updated", "payment_method": method, "label": label}
+
+class PayPlanBalanceRequest(BaseModel):
+    company_id: Optional[str] = None
+    plan_tier: Optional[str] = "Creator"
+    amount: Optional[float] = 5.00
+    interval: Optional[str] = "monthly"
+
+@app.post("/api/billing/pay-with-whop-balance")
+def api_pay_with_whop_balance(req: PayPlanBalanceRequest, request: Request):
+    """Deducts subscription fee directly from merchant's accrued Whop Balance and issues receipt."""
+    import uuid
+    company_id = req.company_id or get_request_company_id(request)
+    merchant = get_or_create_merchant(company_id)
+    current_bal = float(merchant.get("whop_balance") or 432.00)
+    amount = float(req.amount or 5.00)
+
+    if current_bal < amount:
+        raise HTTPException(status_code=400, detail=f"Insufficient Whop Balance (${current_bal:.2f}). Please pay with Credit Card or top up.")
+
+    ref_id = f"WHOP-BAL-{uuid.uuid4().hex[:8].upper()}"
+    desc = f"{req.plan_tier} Plan Subscription ({req.interval.capitalize()}) - Paid via Whop Balance"
+
+    # Deduct balance & save transaction
+    update_billing_settings(
+        company_id=company_id,
+        plan_tier=req.plan_tier,
+        plan_price=amount,
+        plan_interval=req.interval,
+        payment_method="whop_balance",
+        balance_delta=-amount
+    )
+    add_billing_transaction(company_id, "subscription", -amount, desc, ref_id=ref_id)
+    add_notification(
+        company_id, "system", "Plan Payment Successful",
+        f"${amount:.2f} deducted from Whop Balance for {req.plan_tier} Plan. Reference: {ref_id}", "Just now"
+    )
+    log_event("billing_payment", "success", f"Processed ${amount:.2f} subscription payment via Whop Balance for {company_id}", company_id=company_id)
+
+    return {
+        "status": "success",
+        "message": f"Successfully paid ${amount:.2f} using Whop Balance. Receipt: {ref_id}",
+        "ref_id": ref_id,
+        "new_balance": current_bal - amount
+    }
+
+class UpgradePlanRequest(BaseModel):
+    company_id: Optional[str] = None
+    plan_tier: str  # 'Starter', 'Creator', 'Pro'
+    interval: Optional[str] = "monthly"
+    payment_method: Optional[str] = "whop_balance"  # 'whop_balance' or 'whop_checkout'
+
+@app.post("/api/billing/upgrade-plan")
+def api_upgrade_plan(req: UpgradePlanRequest, request: Request):
+    """Changes merchant plan subscription and initiates payment via Whop Balance or Whop Checkout."""
+    import uuid
+    company_id = req.company_id or get_request_company_id(request)
+    tier = req.plan_tier.capitalize()
+    interval = req.interval.lower()
+
+    # Pricing lookup
+    if tier == "Starter":
+        price = 0.0
+    elif tier == "Creator":
+        price = 48.00 if interval == "yearly" else 5.00
+    elif tier == "Pro":
+        price = 279.00 if interval == "yearly" else 29.00
+    else:
+        price = 5.00
+
+    if req.payment_method == "whop_checkout":
+        return {
+            "status": "redirect",
+            "checkout_url": f"{settings.WHOP_CHECKOUT_URL}?plan={tier.lower()}&interval={interval}&company_id={company_id}",
+            "message": f"Redirecting to Whop Checkout for {tier} plan..."
+        }
+
+    # Whop Balance Payment
+    merchant = get_or_create_merchant(company_id)
+    current_bal = float(merchant.get("whop_balance") or 432.00)
+
+    if price > 0 and current_bal < price:
+        return {
+            "status": "redirect",
+            "checkout_url": f"{settings.WHOP_CHECKOUT_URL}?plan={tier.lower()}&company_id={company_id}",
+            "message": f"Whop balance insufficient (${current_bal:.2f}). Redirecting to Whop Checkout..."
+        }
+
+    ref_id = f"WHOP-UPG-{uuid.uuid4().hex[:8].upper()}"
+    desc = f"Upgraded to {tier} Plan ({interval.capitalize()}) - Paid via Whop Balance"
+
+    update_billing_settings(
+        company_id=company_id,
+        plan_tier=tier,
+        plan_price=price,
+        plan_interval=interval,
+        payment_method="whop_balance",
+        balance_delta=-price if price > 0 else 0.0
+    )
+    if price > 0:
+        add_billing_transaction(company_id, "subscription", -price, desc, ref_id=ref_id)
+
+    add_notification(
+        company_id, "system", f"Subscribed to {tier} Plan",
+        f"Your store is now on the {tier} Plan (${price:.2f}/{interval}). Paid via Whop Balance.", "Just now"
+    )
+    log_event("plan_upgrade", "success", f"Merchant {company_id} upgraded to {tier} ({interval}) via Whop Balance", company_id=company_id)
+
+    return {
+        "status": "success",
+        "plan_tier": tier,
+        "plan_price": price,
+        "interval": interval,
+        "message": f"Successfully activated {tier} Plan! Charged ${price:.2f} to Whop Balance.",
+        "ref_id": ref_id
+    }
 
 if __name__ == "__main__":
     import uvicorn

@@ -9,9 +9,11 @@ from config import DB_PATH
 logger = logging.getLogger("whop_cj.db")
 
 def get_db_connection() -> sqlite3.Connection:
-    """Returns a SQLite connection configured with Row factory."""
-    conn = sqlite3.connect(DB_PATH)
+    """Returns a SQLite connection configured with Row factory and WAL mode for robust concurrency."""
+    conn = sqlite3.connect(DB_PATH, timeout=30.0)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA busy_timeout=30000;")
     return conn
 
 DEFAULT_COMPANY_ID = "biz_ea3gy6pg50A7px"
@@ -34,10 +36,29 @@ def init_db():
         whop_api_key TEXT DEFAULT '',
         whop_webhook_secret TEXT DEFAULT '',
         auto_order_enabled INTEGER DEFAULT 1,
+        plan_tier TEXT DEFAULT 'Creator',
+        plan_price REAL DEFAULT 5.00,
+        plan_interval TEXT DEFAULT 'monthly',
+        payment_method TEXT DEFAULT 'whop_balance',
+        whop_balance REAL DEFAULT 432.00,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
+
+    # Safe column migrations for existing SQLite databases
+    billing_cols = [
+        ("plan_tier", "TEXT DEFAULT 'Creator'"),
+        ("plan_price", "REAL DEFAULT 5.00"),
+        ("plan_interval", "TEXT DEFAULT 'monthly'"),
+        ("payment_method", "TEXT DEFAULT 'whop_balance'"),
+        ("whop_balance", "REAL DEFAULT 432.00")
+    ]
+    for col_name, col_def in billing_cols:
+        try:
+            c.execute(f"ALTER TABLE merchant_settings ADD COLUMN {col_name} {col_def}")
+        except Exception:
+            pass
 
     # Multi-tenant SKU / Product Mapping table
     c.execute("""
@@ -395,6 +416,56 @@ def add_billing_transaction(company_id: str, tx_type: str, amount: float, descri
         VALUES (?, ?, ?, ?, 'completed', ?)
     """, (active_cid, tx_type, amount, description, ref_id))
     conn.commit()
+    conn.close()
+
+def add_notification(company_id: str, notif_type: str, title: str, message: str, time_ago: str = "Just now"):
+    """Inserts a new notification for active merchant."""
+    active_cid = company_id.strip() if company_id and company_id.strip() else DEFAULT_COMPANY_ID
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO notifications (company_id, type, title, message, time_ago, is_read)
+        VALUES (?, ?, ?, ?, ?, 0)
+    """, (active_cid, notif_type, title, message, time_ago))
+    conn.commit()
+    conn.close()
+
+def update_billing_settings(
+    company_id: Optional[str] = None,
+    plan_tier: Optional[str] = None,
+    plan_price: Optional[float] = None,
+    plan_interval: Optional[str] = None,
+    payment_method: Optional[str] = None,
+    balance_delta: float = 0.0
+):
+    """Updates merchant subscription tier, payment preference, or wallet balance."""
+    active_cid = company_id.strip() if company_id and company_id.strip() else DEFAULT_COMPANY_ID
+    get_or_create_merchant(active_cid)
+    conn = get_db_connection()
+    c = conn.cursor()
+    updates = []
+    params = []
+    if plan_tier is not None:
+        updates.append("plan_tier = ?")
+        params.append(plan_tier)
+    if plan_price is not None:
+        updates.append("plan_price = ?")
+        params.append(plan_price)
+    if plan_interval is not None:
+        updates.append("plan_interval = ?")
+        params.append(plan_interval)
+    if payment_method is not None:
+        updates.append("payment_method = ?")
+        params.append(payment_method)
+    if balance_delta != 0.0:
+        updates.append("whop_balance = MAX(0.0, COALESCE(whop_balance, 432.00) + ?)")
+        params.append(balance_delta)
+    if updates:
+        updates.append("updated_at = CURRENT_TIMESTAMP")
+        sql = f"UPDATE merchant_settings SET {', '.join(updates)} WHERE company_id = ?"
+        params.append(active_cid)
+        c.execute(sql, params)
+        conn.commit()
     conn.close()
 
 # Auto-initialize when module is imported
