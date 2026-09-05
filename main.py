@@ -183,6 +183,7 @@ def view_settings(request: Request):
 
 @app.get("/app-store", response_class=HTMLResponse)
 @app.get("/listing", response_class=HTMLResponse)
+@app.get("/discover", response_class=HTMLResponse)
 def view_app_store_listing(request: Request):
     """Whop App Store marketplace listing page faithful to the CJ Dropshipping reference design."""
     company_id = get_request_company_id(request)
@@ -192,6 +193,36 @@ def view_app_store_listing(request: Request):
     return templates.TemplateResponse(request=request, name="app_store.html", context={
         "request": request,
         "active_page": "app_store",
+        "company_id": company_id,
+        "current_merchant": current_merchant,
+        "all_merchants": all_merchants
+    })
+
+@app.get("/privacy", response_class=HTMLResponse)
+def view_privacy_policy(request: Request):
+    """Public Privacy Policy required by Whop App Store Submission Guidelines."""
+    company_id = get_request_company_id(request)
+    current_merchant = get_or_create_merchant(company_id)
+    all_merchants = list_merchants()
+
+    return templates.TemplateResponse(request=request, name="privacy.html", context={
+        "request": request,
+        "active_page": "privacy",
+        "company_id": company_id,
+        "current_merchant": current_merchant,
+        "all_merchants": all_merchants
+    })
+
+@app.get("/terms", response_class=HTMLResponse)
+def view_terms_of_service(request: Request):
+    """Public Terms of Service required by Whop App Store Submission Guidelines."""
+    company_id = get_request_company_id(request)
+    current_merchant = get_or_create_merchant(company_id)
+    all_merchants = list_merchants()
+
+    return templates.TemplateResponse(request=request, name="terms.html", context={
+        "request": request,
+        "active_page": "terms",
         "company_id": company_id,
         "current_merchant": current_merchant,
         "all_merchants": all_merchants
