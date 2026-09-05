@@ -26,7 +26,7 @@ class CJApiClient:
         api_key = creds.get("cj_api_key")
         current_token = creds.get("cj_access_token")
 
-        if not email or not api_key:
+        if not api_key:
             logger.info(f"CJ Dropshipping credentials not configured for company {company_id or 'default'}. Operating in Sandbox mode.")
             return None
 
@@ -35,9 +35,10 @@ class CJApiClient:
 
         # Request new access token from CJ API 2.0
         payload = {
-            "email": email,
             "apiKey": api_key
         }
+        if email:
+            payload["email"] = email
 
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:

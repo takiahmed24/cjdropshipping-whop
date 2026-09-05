@@ -9,7 +9,7 @@
   <div>
     <strong>Multi-Tenant Active Store:</strong> <code style="color: var(--status-cyan);">{{ current_merchant.account_name }}</code> (ID: <code>{{ company_id }}</code>).
     {% if not metrics.is_cj_connected %}
-      <span style="color: var(--status-orange); font-weight: 600; margin-left: 6px;">[!] Please add your CJ API Key in Settings to connect your store.</span>
+      <span style="color: var(--status-orange); font-weight: 600; margin-left: 6px;">[!] Please add your CJ API Key in <a href="/settings?company_id={{ company_id }}" style="color: var(--status-cyan); text-decoration: underline; font-weight: 700;">Settings</a> to connect your store.</span>
     {% else %}
       <span style="color: var(--status-green); margin-left: 6px;">&bull; CJ Dropshipping Connected</span>
     {% endif %}

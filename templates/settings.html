@@ -17,6 +17,63 @@
   </div>
 </div>
 
+<!-- Step-by-Step Integration Guide -->
+<div class="tactical-card" style="margin-bottom: 24px;">
+  <div class="card-header">
+    <div class="card-title-group">
+      <h2>How to Get Your CJ Dropshipping API Key</h2>
+      <p>Connect your personal or business CJ Dropshipping account in under 2 minutes (Zero Monthly Fees)</p>
+    </div>
+    <a href="https://cjdropshipping.com" target="_blank" class="btn btn-secondary" style="text-decoration: none; font-size: 12px; padding: 6px 14px;">Open CJ Dropshipping &rarr;</a>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 12px;">
+    <!-- Step 1 -->
+    <div style="background-color: var(--bg-panel-alt); border: 1px solid var(--border-line); border-radius: var(--radius-sm); padding: 16px;">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+        <span style="background-color: #FF6243; color: white; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px;">1</span>
+        <strong style="color: var(--text-bright); font-size: 13px;">Log In to CJ</strong>
+      </div>
+      <p style="font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5;">
+        Go to <a href="https://cjdropshipping.com" target="_blank" style="color: var(--status-cyan); text-decoration: underline;">cjdropshipping.com</a>. Create a free account or log into your existing account.
+      </p>
+    </div>
+
+    <!-- Step 2 -->
+    <div style="background-color: var(--bg-panel-alt); border: 1px solid var(--border-line); border-radius: var(--radius-sm); padding: 16px;">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+        <span style="background-color: #FF6243; color: white; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px;">2</span>
+        <strong style="color: var(--text-bright); font-size: 13px;">Go to API Settings</strong>
+      </div>
+      <p style="font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5;">
+        In the left sidebar, click <strong>Services</strong> &rarr; <strong>API</strong> (or <strong>My CJ</strong> &rarr; <strong>API</strong>).
+      </p>
+    </div>
+
+    <!-- Step 3 -->
+    <div style="background-color: var(--bg-panel-alt); border: 1px solid var(--border-line); border-radius: var(--radius-sm); padding: 16px;">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+        <span style="background-color: #FF6243; color: white; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px;">3</span>
+        <strong style="color: var(--text-bright); font-size: 13px;">Click "Add API"</strong>
+      </div>
+      <p style="font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5;">
+        Click the orange <strong>Add API</strong> button, name it (e.g. <code>{{ current_merchant.account_name }}</code>), and click Confirm.
+      </p>
+    </div>
+
+    <!-- Step 4 -->
+    <div style="background-color: var(--bg-panel-alt); border: 1px solid var(--border-line); border-radius: var(--radius-sm); padding: 16px;">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+        <span style="background-color: #FF6243; color: white; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px;">4</span>
+        <strong style="color: var(--text-bright); font-size: 13px;">Copy & Connect</strong>
+      </div>
+      <p style="font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5;">
+        Click the orange <strong>API Key</strong> button on the row. Copy your key (starts with <code>CJ...</code>) and paste it below.
+      </p>
+    </div>
+  </div>
+</div>
+
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
 
   <!-- CJ Dropshipping Credentials -->
@@ -43,15 +100,15 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label">Your CJ Account Email</label>
-        <input type="email" id="cj_email" class="form-control" value="{{ settings.cj_email or '' }}" placeholder="your-email@example.com" required>
-        <span class="form-sublabel">The email address you use to log in to cjdropshipping.com</span>
+        <label class="form-label">Your CJ Open API Key</label>
+        <input type="password" id="cj_api_key" class="form-control" value="{{ settings.cj_api_key or '' }}" placeholder="e.g. CJ5792999@api@805aec..." required>
+        <span class="form-sublabel">Copied from CJ Dropshipping &rarr; Services &rarr; API &rarr; API Key</span>
       </div>
 
       <div class="form-group">
-        <label class="form-label">Your CJ Open API Key</label>
-        <input type="password" id="cj_api_key" class="form-control" value="{{ settings.cj_api_key or '' }}" placeholder="Enter your CJ API Key" required>
-        <span class="form-sublabel">Obtained from developers.cjdropshipping.com &rarr; My API</span>
+        <label class="form-label">Your CJ Account Email (Optional)</label>
+        <input type="email" id="cj_email" class="form-control" value="{{ settings.cj_email or '' }}" placeholder="your-email@example.com">
+        <span class="form-sublabel">Optional: CJ API 2.0 connects directly with your Open API Key above</span>
       </div>
 
       <div class="form-group">
