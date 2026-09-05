@@ -16,6 +16,9 @@
   <!-- Local Offline Chart.js -->
   <script src="/static/js/chart.min.js"></script>
 
+  <!-- App Favicon -->
+  <link rel="icon" type="image/png" href="/static/favicon.png">
+
   {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -26,9 +29,15 @@
          ==================================================================== -->
     <aside class="app-sidebar" id="desktopSidebar">
       <div class="sidebar-brand">
-        <a href="/?company_id={{ company_id }}" class="brand-logo-wrap">
-          <span class="brand-cj-script">cj</span>
-          <span class="brand-sub-title">dropshipping</span>
+        <a href="/?company_id={{ company_id }}" class="brand-logo-wrap" style="text-decoration: none;">
+          <img src="/static/app_icon_512.png" alt="CJdropshipping for Whop" style="width: 32px; height: 32px; border-radius: 8px; object-fit: contain; box-shadow: 0 2px 5px rgba(0,0,0,0.08); flex-shrink: 0;">
+          <div style="display: flex; flex-direction: column; line-height: 1.15;">
+            <div style="display: flex; align-items: baseline; gap: 3px;">
+              <span class="brand-cj-script" style="font-size: 20px;">cj</span>
+              <span class="brand-sub-title" style="font-size: 14px;">dropshipping</span>
+            </div>
+            <span style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);">for Whop</span>
+          </div>
         </a>
       </div>
 
@@ -130,9 +139,12 @@
           <button onclick="toggleMobileMenu()" style="background: none; border: none; font-size: 20px; color: var(--text-main); cursor: pointer;">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           </button>
-          <a href="/?company_id={{ company_id }}" style="display: flex; align-items: center; gap: 4px;">
-            <span class="brand-cj-script" style="font-size: 19px;">cj</span>
-            <span class="brand-sub-title" style="font-size: 14px;">dropshipping</span>
+          <a href="/?company_id={{ company_id }}" style="display: flex; align-items: center; gap: 8px; text-decoration: none;">
+            <img src="/static/app_icon_512.png" alt="CJ" style="width: 26px; height: 26px; border-radius: 6px; object-fit: contain; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <div style="display: flex; align-items: baseline; gap: 3px;">
+              <span class="brand-cj-script" style="font-size: 18px;">cj</span>
+              <span class="brand-sub-title" style="font-size: 13.5px;">dropshipping</span>
+            </div>
           </a>
         </div>
 
@@ -152,6 +164,7 @@
         <!-- Compliance & Legal Navigation Footer -->
         <footer style="margin-top: 56px; padding-top: 24px; padding-bottom: 24px; border-top: 1px solid var(--border-card); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; font-size: 12px; color: var(--text-muted);">
           <div style="display: flex; align-items: center; gap: 8px;">
+            <img src="/static/app_icon_512.png" alt="CJ" style="width: 20px; height: 20px; border-radius: 4px; object-fit: contain;">
             <span class="brand-cj-script" style="font-size: 16px;">cj</span>
             <span class="brand-sub-title" style="font-size: 11px;">dropshipping</span>
             <span>&times; Whop Marketplace &bull; Certified Dropshipping Integration</span>
@@ -290,8 +303,14 @@
     <div style="position: absolute; top: 0; left: 0; bottom: 0; width: 280px; max-width: 80%; background: #FFFFFF; box-shadow: var(--shadow-float); display: flex; flex-direction: column; z-index: 2010; padding: 20px 16px;">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
         <div class="brand-logo-wrap">
-          <span class="brand-cj-script">cj</span>
-          <span class="brand-sub-title">dropshipping</span>
+          <img src="/static/app_icon_512.png" alt="CJdropshipping for Whop" style="width: 28px; height: 28px; border-radius: 6px; object-fit: contain; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <div style="display: flex; flex-direction: column; line-height: 1.15;">
+            <div style="display: flex; align-items: baseline; gap: 3px;">
+              <span class="brand-cj-script" style="font-size: 18px;">cj</span>
+              <span class="brand-sub-title" style="font-size: 13.5px;">dropshipping</span>
+            </div>
+            <span style="font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);">for Whop</span>
+          </div>
         </div>
         <button onclick="toggleMobileMenu()" style="background: none; border: none; font-size: 22px; color: var(--text-muted);">&times;</button>
       </div>
