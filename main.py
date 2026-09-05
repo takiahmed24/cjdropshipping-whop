@@ -15,10 +15,13 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from config import settings
-from database import get_db_connection, get_settings, update_settings, log_event, get_or_create_merchant, list_merchants, DEFAULT_COMPANY_ID
+from database import get_db_connection, get_settings, update_settings, log_event, get_or_create_merchant, list_merchants, DEFAULT_COMPANY_ID, init_db
 from services.sync_worker import process_incoming_whop_order, sync_all_pending_tracking, list_cj_product_to_whop_service
 from services.cj_api_client import cj_client
 from services.whop_api_client import whop_client
+
+# Ensure SQLite schema and tables are auto-initialized
+init_db()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("whop_cj.main")
