@@ -15,7 +15,12 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from config import settings
-from database import get_db_connection, get_settings, update_settings, log_event, get_or_create_merchant, list_merchants, DEFAULT_COMPANY_ID, init_db
+from database import (
+    get_db_connection, get_settings, update_settings, log_event,
+    get_or_create_merchant, list_merchants, DEFAULT_COMPANY_ID, init_db,
+    get_sourcing_requests, add_sourcing_request, get_notifications,
+    mark_notifications_read, get_billing_transactions, add_billing_transaction
+)
 from services.sync_worker import process_incoming_whop_order, sync_all_pending_tracking, list_cj_product_to_whop_service
 from services.cj_api_client import cj_client
 from services.whop_api_client import whop_client
@@ -189,6 +194,132 @@ def view_app_store_listing(request: Request):
         "company_id": company_id,
         "current_merchant": current_merchant,
         "all_merchants": all_merchants
+    })
+
+@app.get("/orders", response_class=HTMLResponse)
+@app.get("/orders/{order_id}", response_class=HTMLResponse)
+def view_orders(request: Request, order_id: Optional[str] = None):
+    """Orders management and real-time tracking timeline view (Screen 04)."""
+    company_id = get_request_company_id(request)
+    current_merchant = get_or_create_merchant(company_id)
+    all_merchants = list_merchants()
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM orders WHERE company_id = ? ORDER BY id DESC", (company_id,))
+    order_rows = [dict(r) for r in c.fetchall()]
+
+    for o in order_rows:
+        try:
+            items = json.loads(o["items_json"])
+            o["items_summary"] = ", ".join([f"{it.get('quantity', 1)}x {it.get('whop_title', 'Product')}" for it in items])
+        except Exception:
+            o["items_summary"] = "Physical Item"
+
+    selected_order = None
+    if order_id:
+        selected_order = next((o for o in order_rows if order_id in o.get("whop_order_id", "")), None)
+    if not selected_order and order_rows:
+        selected_order = order_rows[0]
+
+    conn.close()
+
+    return templates.TemplateResponse(request=request, name="orders.html", context={
+        "request": request,
+        "active_page": "orders",
+        "company_id": company_id,
+        "current_merchant": current_merchant,
+        "all_merchants": all_merchants,
+        "orders": order_rows,
+        "selected_order": selected_order
+    })
+
+@app.get("/sourcing", response_class=HTMLResponse)
+def view_sourcing(request: Request):
+    """Custom product sourcing request pipeline (Screen 07)."""
+    company_id = get_request_company_id(request)
+    current_merchant = get_or_create_merchant(company_id)
+    all_merchants = list_merchants()
+    sourcing_requests = get_sourcing_requests(company_id)
+
+    return templates.TemplateResponse(request=request, name="sourcing.html", context={
+        "request": request,
+        "active_page": "sourcing",
+        "company_id": company_id,
+        "current_merchant": current_merchant,
+        "all_merchants": all_merchants,
+        "sourcing_requests": sourcing_requests
+    })
+
+@app.get("/inventory", response_class=HTMLResponse)
+def view_inventory(request: Request):
+    """Inventory and Store Sync view (Screen 08)."""
+    return view_sku_mapping(request)
+
+@app.get("/analytics", response_class=HTMLResponse)
+def view_analytics(request: Request):
+    """Performance analytics, conversion rates, and revenue metrics (Screen 06)."""
+    company_id = get_request_company_id(request)
+    current_merchant = get_or_create_merchant(company_id)
+    all_merchants = list_merchants()
+
+    return templates.TemplateResponse(request=request, name="analytics.html", context={
+        "request": request,
+        "active_page": "analytics",
+        "company_id": company_id,
+        "current_merchant": current_merchant,
+        "all_merchants": all_merchants
+    })
+
+@app.get("/billing", response_class=HTMLResponse)
+def view_billing(request: Request):
+    """Plan management, fulfillment balance, payment methods, and invoices (Screen B)."""
+    company_id = get_request_company_id(request)
+    current_merchant = get_or_create_merchant(company_id)
+    all_merchants = list_merchants()
+    transactions = get_billing_transactions(company_id)
+
+    return templates.TemplateResponse(request=request, name="billing.html", context={
+        "request": request,
+        "active_page": "billing",
+        "company_id": company_id,
+        "current_merchant": current_merchant,
+        "all_merchants": all_merchants,
+        "transactions": transactions,
+        "plan_price": settings.PLAN_PRICE_USD,
+        "trial_days": settings.TRIAL_DAYS
+    })
+
+@app.get("/shipping", response_class=HTMLResponse)
+def view_shipping(request: Request):
+    """Global shipping routes, express lines, and regional transit times (Screen 10)."""
+    company_id = get_request_company_id(request)
+    current_merchant = get_or_create_merchant(company_id)
+    all_merchants = list_merchants()
+
+    return templates.TemplateResponse(request=request, name="shipping.html", context={
+        "request": request,
+        "active_page": "shipping",
+        "company_id": company_id,
+        "current_merchant": current_merchant,
+        "all_merchants": all_merchants
+    })
+
+@app.get("/notifications", response_class=HTMLResponse)
+def view_notifications(request: Request):
+    """Full notifications activity feed (Screen 09)."""
+    company_id = get_request_company_id(request)
+    current_merchant = get_or_create_merchant(company_id)
+    all_merchants = list_merchants()
+    notifications = get_notifications(company_id)
+
+    return templates.TemplateResponse(request=request, name="notifications.html", context={
+        "request": request,
+        "active_page": "notifications",
+        "company_id": company_id,
+        "current_merchant": current_merchant,
+        "all_merchants": all_merchants,
+        "notifications": notifications
     })
 
 # ---------------------------------------------------------------------------
@@ -457,6 +588,34 @@ async def simulate_test_order(request: Request):
 
     result = await process_incoming_whop_order(mock_payload)
     return result
+
+class SourcingCreateRequest(BaseModel):
+    company_id: Optional[str] = None
+    product_name: str
+    target_price: float
+    image_url: Optional[str] = ""
+    details: Optional[str] = ""
+
+@app.post("/api/sourcing/request")
+def api_submit_sourcing_request(req: SourcingCreateRequest, request: Request):
+    """Submits a new custom sourcing request to the database."""
+    company_id = req.company_id or get_request_company_id(request)
+    req_id = add_sourcing_request(
+        company_id=company_id,
+        product_name=req.product_name,
+        target_price=req.target_price,
+        image_url=req.image_url or "",
+        details=req.details or ""
+    )
+    log_event("sourcing_request", "success", f"Submitted sourcing request for {req.product_name}", company_id=company_id)
+    return {"status": "submitted", "id": req_id, "company_id": company_id}
+
+@app.post("/api/notifications/read")
+def api_mark_notifications_read_endpoint(request: Request):
+    """Marks all notifications as read for current merchant."""
+    company_id = get_request_company_id(request)
+    mark_notifications_read(company_id)
+    return {"status": "marked_read", "company_id": company_id}
 
 if __name__ == "__main__":
     import uvicorn
